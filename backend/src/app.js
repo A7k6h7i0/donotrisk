@@ -11,6 +11,12 @@ import { env } from "./config/env.js";
 
 export const app = express();
 
+// Render sits behind a proxy and sends X-Forwarded-* headers.
+// express-rate-limit needs this enabled to identify client IPs safely.
+if (env.nodeEnv === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(helmet());
 app.use(
   cors({
