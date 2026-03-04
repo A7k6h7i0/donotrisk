@@ -1,0 +1,51 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: donotrisk-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  ocr-service:
+    build:
+      context: ./ocr-service
+      dockerfile: Dockerfile
+    container_name: donotrisk-ocr
+    env_file:
+      - ./ocr-service/.env
+    ports:
+      - "8000:8000"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: donotrisk-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      OCR_SERVICE_URL: http://ocr-service:8000
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      mongo:
+        condition: service_started
+      ocr-service:
+        condition: service_started
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: donotrisk-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo_data:
