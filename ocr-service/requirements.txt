@@ -9,5 +9,6 @@ pyzbar==0.1.9
 python-dateutil==2.9.0.post0
 pypdf==5.1.0
 pypdfium2==4.30.0
-paddleocr==2.8.1
-easyocr==1.7.2
+# Optional heavy OCR engines (keep disabled by default on low-memory hosts):
+# paddleocr==2.8.1
+# easyocr==1.7.2

@@ -37,6 +37,14 @@ def is_true(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def env_int(name: str, default: int, min_value: int = 1, max_value: int = 10) -> int:
+    try:
+        value = int(str(os.getenv(name, default)).strip())
+    except Exception:
+        value = default
+    return max(min_value, min(max_value, value))
+
+
 def default_heavy_ocr_enabled() -> bool:
     # Keep heavy OCR engines opt-in by default; this avoids frequent
     # 502/timeouts on low-memory instances.
@@ -177,7 +185,7 @@ def parse_pdf_text(path: str) -> str:
     return "\n".join(chunks).strip()
 
 
-def render_pdf_pages(path: str, max_pages: int = 4) -> list[np.ndarray]:
+def render_pdf_pages(path: str, max_pages: int = 2) -> list[np.ndarray]:
     if pdfium is None:
         return []
 
@@ -212,7 +220,8 @@ def run_ocr_on_image(image: np.ndarray) -> dict[str, Any]:
     engine_results = {"paddle": "", "easyocr": "", "tesseract": ""}
 
     candidate_texts = []
-    for variant in variants[:5]:
+    max_variants = env_int("OCR_MAX_VARIANTS", 3, min_value=1, max_value=6)
+    for variant in variants[:max_variants]:
         ptxt = paddle_ocr_text(variant)
         etxt = easy_ocr_text(variant)
         ttxt = tesseract_text(variant)
@@ -244,7 +253,8 @@ def run_ocr_pipeline(path: str) -> dict[str, Any]:
 
     if ext == ".pdf":
         embedded_text = parse_pdf_text(path)
-        images = render_pdf_pages(path)
+        max_pages = env_int("OCR_MAX_PDF_PAGES", 2, min_value=1, max_value=8)
+        images = render_pdf_pages(path, max_pages=max_pages)
 
         per_page = []
         merged_parts = [embedded_text] if embedded_text else []
