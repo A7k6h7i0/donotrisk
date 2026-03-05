@@ -8,21 +8,30 @@ function sleep(ms) {
 }
 
 export async function extractFromWarrantyFile(filePath, originalName, mimeType) {
-  const form = new FormData();
-  form.append("file", fs.createReadStream(filePath), {
-    filename: originalName || "warranty_upload",
-    contentType: mimeType || "application/octet-stream"
-  });
-
   const base = String(env.ocrServiceUrl || "").replace(/\/+$/, "");
   let lastError;
   const maxAttempts = env.nodeEnv === "production" ? 3 : 1;
 
+  // Warm up OCR container on platforms with cold starts (best effort).
+  if (env.nodeEnv === "production") {
+    try {
+      await axios.get(`${base}/health`, { timeout: 20000 });
+    } catch {}
+  }
+
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
+      // Rebuild multipart payload each attempt; streams are single-use.
+      const form = new FormData();
+      form.append("file", fs.createReadStream(filePath), {
+        filename: originalName || "warranty_upload",
+        contentType: mimeType || "application/octet-stream"
+      });
+
       const response = await axios.post(`${base}/extract`, form, {
         headers: form.getHeaders(),
         maxBodyLength: Infinity,
+        maxContentLength: Infinity,
         timeout: 300000
       });
       return response.data;
