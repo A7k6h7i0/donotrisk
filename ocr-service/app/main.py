@@ -7,6 +7,11 @@ from .ocr import run_ocr
 app = FastAPI(title="DoNotRisk OCR Service", version="1.1.0")
 
 
+@app.get("/")
+def root():
+  return {"service": "ocr", "status": "ok"}
+
+
 @app.get("/health")
 def health():
   return {"status": "ok"}
