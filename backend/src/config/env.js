@@ -20,5 +20,6 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
   ocrServiceUrl: process.env.OCR_SERVICE_URL || "http://localhost:8000",
+  ocrMaxAttempts: Math.max(1, Number(process.env.OCR_MAX_ATTEMPTS || 3)),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10)
 };

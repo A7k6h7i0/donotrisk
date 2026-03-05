@@ -11,10 +11,10 @@ export async function extractFromWarrantyFile(filePath, originalName, mimeType) 
   const base = String(env.ocrServiceUrl || "").replace(/\/+$/, "");
   const fileBuffer = fs.readFileSync(filePath);
   let lastError;
-  const maxAttempts = env.nodeEnv === "production" ? 3 : 1;
+  const maxAttempts = env.ocrMaxAttempts;
 
   // Warm up OCR container on platforms with cold starts (best effort).
-  if (env.nodeEnv === "production") {
+  if (maxAttempts > 1) {
     try {
       await axios.get(`${base}/health`, { timeout: 20000 });
     } catch {}

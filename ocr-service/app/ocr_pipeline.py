@@ -38,9 +38,9 @@ def is_true(value: str | None) -> bool:
 
 
 def default_heavy_ocr_enabled() -> bool:
-    # Render free/low-memory instances frequently fail while initializing
-    # heavy OCR engines; keep them opt-in there.
-    return not is_true(os.getenv("RENDER"))
+    # Keep heavy OCR engines opt-in by default; this avoids frequent
+    # 502/timeouts on low-memory instances.
+    return is_true(os.getenv("ENABLE_HEAVY_OCR_BY_DEFAULT", "false"))
 
 
 def get_paddle_engine():
@@ -142,7 +142,7 @@ def easy_ocr_text(image: np.ndarray) -> str:
 
 def tesseract_text(image: np.ndarray) -> str:
     tesseract_cmd = os.getenv("TESSERACT_CMD")
-    if tesseract_cmd:
+    if tesseract_cmd and os.path.exists(tesseract_cmd):
         pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     best = ""
