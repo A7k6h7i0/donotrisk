@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: donotrisk-ocr
+    runtime: docker
+    rootDir: ocr-service
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: TESSERACT_CMD
+        value: /usr/bin/tesseract
+      - key: ENABLE_HEAVY_OCR_BY_DEFAULT
+        value: false
+      - key: ENABLE_PADDLE_OCR
+        value: false
+      - key: ENABLE_EASYOCR
+        value: false
+      - key: OCR_MAX_VARIANTS
+        value: 3
+      - key: OCR_MAX_PDF_PAGES
+        value: 2
+
+  - type: web
+    name: donotrisk-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci --omit=dev || npm install --omit=dev
+    startCommand: npm start
+    autoDeploy: true
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: OCR_MAX_ATTEMPTS
+        value: 3
+      - key: MAX_UPLOAD_MB
+        value: 10
+      - key: OCR_SERVICE_URL
+        value: http://donotrisk-ocr:10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

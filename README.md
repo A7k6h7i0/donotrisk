@@ -70,6 +70,19 @@ npm install
 npm run dev
 ```
 
+## Render Blueprint (Backend + OCR)
+
+This repo includes `render.yaml` so Render can provision both services with required env vars.
+
+1. In Render dashboard, choose **New +** -> **Blueprint**.
+2. Select this repository.
+3. Render will create:
+   - `donotrisk-ocr` (Docker web service)
+   - `donotrisk-backend` (Node web service)
+4. After creation, set values for backend vars marked `sync: false`:
+   - `MONGODB_URI`
+   - `CORS_ORIGIN` (your Vercel frontend URL)
+
 ## Security and Production Notes
 
 - JWT auth with role-based authorization (`user`, `admin`)
