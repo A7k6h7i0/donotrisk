@@ -33,11 +33,23 @@ _paddle_engine = None
 _easy_engine = None
 
 
+def is_true(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def default_heavy_ocr_enabled() -> bool:
+    # Render free/low-memory instances frequently fail while initializing
+    # heavy OCR engines; keep them opt-in there.
+    return not is_true(os.getenv("RENDER"))
+
+
 def get_paddle_engine():
     global _paddle_engine
     if _paddle_engine is not None:
         return _paddle_engine
     if PaddleOCR is None:
+        return None
+    if not is_true(os.getenv("ENABLE_PADDLE_OCR", "true" if default_heavy_ocr_enabled() else "false")):
         return None
 
     use_gpu = os.getenv("PADDLE_USE_GPU", "false").lower() == "true"
@@ -53,6 +65,8 @@ def get_easy_engine():
     if _easy_engine is not None:
         return _easy_engine
     if easyocr is None:
+        return None
+    if not is_true(os.getenv("ENABLE_EASYOCR", "true" if default_heavy_ocr_enabled() else "false")):
         return None
 
     use_gpu = os.getenv("EASYOCR_USE_GPU", "false").lower() == "true"

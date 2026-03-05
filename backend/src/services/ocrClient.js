@@ -9,6 +9,7 @@ function sleep(ms) {
 
 export async function extractFromWarrantyFile(filePath, originalName, mimeType) {
   const base = String(env.ocrServiceUrl || "").replace(/\/+$/, "");
+  const fileBuffer = fs.readFileSync(filePath);
   let lastError;
   const maxAttempts = env.nodeEnv === "production" ? 3 : 1;
 
@@ -21,15 +22,26 @@ export async function extractFromWarrantyFile(filePath, originalName, mimeType) 
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      // Rebuild multipart payload each attempt; streams are single-use.
+      // Rebuild multipart payload each attempt.
       const form = new FormData();
-      form.append("file", fs.createReadStream(filePath), {
+      form.append("file", fileBuffer, {
         filename: originalName || "warranty_upload",
-        contentType: mimeType || "application/octet-stream"
+        contentType: mimeType || "application/octet-stream",
+        knownLength: fileBuffer.length
+      });
+
+      const contentLength = await new Promise((resolve, reject) => {
+        form.getLength((err, length) => {
+          if (err) return reject(err);
+          return resolve(length);
+        });
       });
 
       const response = await axios.post(`${base}/extract`, form, {
-        headers: form.getHeaders(),
+        headers: {
+          ...form.getHeaders(),
+          "Content-Length": String(contentLength)
+        },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
         timeout: 300000
