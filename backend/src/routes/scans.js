@@ -260,6 +260,29 @@ function formatScanResponse(extracted, match) {
   };
 }
 
+function mapOcrFailure(error) {
+  const status = Number(error?.response?.status || 0);
+  const detail =
+    error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    error?.message ||
+    "Unable to read document. Upload a clearer image/PDF.";
+
+  if (status === 400 || status === 422) {
+    return { status: 422, message: detail };
+  }
+
+  const infraError = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|socket hang up/i.test(String(detail));
+  if (status >= 500 || infraError || !status) {
+    return {
+      status: 502,
+      message: `OCR service unavailable. Verify OCR_SERVICE_URL and OCR deployment. Detail: ${detail}`
+    };
+  }
+
+  return { status: 422, message: detail };
+}
+
 router.post("/extract", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "File required" });
 
@@ -267,8 +290,8 @@ router.post("/extract", requireAuth, upload.single("file"), async (req, res) => 
   try {
     extracted = await extractFromWarrantyFile(req.file.path, req.file.originalname, req.file.mimetype);
   } catch (error) {
-    const detail = error?.response?.data?.detail || "Unable to read document. Upload a clearer image/PDF.";
-    return res.status(422).json({ message: detail });
+    const mapped = mapOcrFailure(error);
+    return res.status(mapped.status).json({ message: mapped.message });
   }
 
   const enriched = extractFromRawText(extracted);
@@ -332,8 +355,8 @@ router.post("/extract-url", requireAuth, async (req, res) => {
 
     return res.json(formatScanResponse(enriched, match));
   } catch (error) {
-    const detail = error?.response?.data?.detail || "Unable to fetch or parse URL content.";
-    return res.status(422).json({ message: detail });
+    const mapped = mapOcrFailure(error);
+    return res.status(mapped.status).json({ message: mapped.message });
   }
 });
 

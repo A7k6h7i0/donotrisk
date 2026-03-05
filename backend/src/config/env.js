@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const required = ["MONGODB_URI", "JWT_SECRET"];
+if ((process.env.NODE_ENV || "development") === "production") {
+  required.push("OCR_SERVICE_URL");
+}
 for (const key of required) {
   if (!process.env[key]) {
     throw new Error(`Missing required env var: ${key}`);

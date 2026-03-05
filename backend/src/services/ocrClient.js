@@ -10,10 +10,11 @@ export async function extractFromWarrantyFile(filePath, originalName, mimeType) 
     contentType: mimeType || "application/octet-stream"
   });
 
-  const response = await axios.post(`${env.ocrServiceUrl}/extract`, form, {
+  const base = String(env.ocrServiceUrl || "").replace(/\/+$/, "");
+  const response = await axios.post(`${base}/extract`, form, {
     headers: form.getHeaders(),
     maxBodyLength: Infinity,
-    timeout: 120000
+    timeout: 300000
   });
 
   return response.data;
