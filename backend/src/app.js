@@ -18,9 +18,23 @@ if (env.nodeEnv === "production") {
 }
 
 app.use(helmet());
+
+const allowedOrigins = env.corsOrigin
+  .split(",")
+  .map((x) => x.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: env.corsOrigin.split(",").map((x) => x.trim()),
+    origin: (origin, callback) => {
+      // Allow non-browser and same-origin server calls.
+      if (!origin) return callback(null, true);
+
+      const normalized = origin.trim().replace(/\/+$/, "");
+      if (allowedOrigins.includes(normalized)) return callback(null, true);
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true
   })
 );
