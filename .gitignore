@@ -5,8 +5,8 @@ coverage
 .env
 .env.local
 *.log
-uploads/*
-!uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
 __pycache__
 *.pyc
 .pytest_cache
