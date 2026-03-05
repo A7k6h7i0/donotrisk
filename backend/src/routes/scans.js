@@ -262,17 +262,26 @@ function formatScanResponse(extracted, match) {
 
 function mapOcrFailure(error) {
   const status = Number(error?.response?.status || 0);
+  const message = String(error?.message || "");
   const detail =
     error?.response?.data?.detail ||
     error?.response?.data?.message ||
-    error?.message ||
+    message ||
     "Unable to read document. Upload a clearer image/PDF.";
+
+  // OCR parsing/content errors should stay user-correctable 422 responses,
+  // even if upstream failed to include a status code in some environments.
+  if (/OCR failed:/i.test(detail) || /Unable to read document/i.test(detail)) {
+    return { status: 422, message: detail };
+  }
 
   if (status === 400 || status === 422) {
     return { status: 422, message: detail };
   }
 
-  const infraError = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|socket hang up/i.test(String(detail));
+  const infraError = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|socket hang up|status code 50[234]/i.test(
+    `${detail} ${message}`
+  );
   if (status >= 500 || infraError || !status) {
     return {
       status: 502,
