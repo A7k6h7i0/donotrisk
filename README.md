@@ -54,12 +54,34 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
+Optional (only on high-memory machines): install heavy OCR engines manually:
+```bash
+pip install paddleocr==2.8.1 easyocr==1.7.2
+```
+For low-memory hosts, keep defaults in `ocr-service/.env`:
+- `ENABLE_PADDLE_OCR=false`
+- `ENABLE_EASYOCR=false`
+- `OCR_MAX_VARIANTS=3`
+- `OCR_MAX_PDF_PAGES=2`
 4. Frontend:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+## Render Blueprint (Backend + OCR)
+
+This repo includes `render.yaml` so Render can provision both services with required env vars.
+
+1. In Render dashboard, choose **New +** -> **Blueprint**.
+2. Select this repository.
+3. Render will create:
+   - `donotrisk-ocr` (Docker web service)
+   - `donotrisk-backend` (Node web service)
+4. After creation, set values for backend vars marked `sync: false`:
+   - `MONGODB_URI`
+   - `CORS_ORIGIN` (your Vercel frontend URL)
 
 ## Security and Production Notes
 

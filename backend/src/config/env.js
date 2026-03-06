@@ -13,6 +13,7 @@ const required = ["MONGODB_URI", "JWT_SECRET"];
 if ((process.env.NODE_ENV || "development") === "production") {
   required.push("OCR_SERVICE_URL");
 }
+
 for (const key of required) {
   if (!process.env[key]) {
     throw new Error(`Missing required env var: ${key}`);
@@ -27,6 +28,7 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
   ocrServiceUrl: process.env.OCR_SERVICE_URL || "http://localhost:8000",
+  ocrMaxAttempts: Math.max(1, Number(process.env.OCR_MAX_ATTEMPTS || 3)),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10),
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash"

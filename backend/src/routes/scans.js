@@ -285,7 +285,10 @@ function mapOcrFailure(error) {
   if (status >= 500 || infraError || !status) {
     return {
       status: 502,
-      message: `OCR service unavailable. Verify OCR_SERVICE_URL and OCR deployment. Detail: ${detail}`
+      message:
+        "OCR service unavailable. Verify OCR_SERVICE_URL and OCR deployment. " +
+        "If OCR runs on low-memory infra, set ENABLE_PADDLE_OCR=false and ENABLE_EASYOCR=false in ocr-service env. " +
+        `Detail: ${detail}`
     };
   }
 
