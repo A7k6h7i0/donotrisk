@@ -31,7 +31,7 @@ export async function askGemini({ role, question, context, systemInstruction }) 
         generationConfig: {
           temperature: 0.2,
           // Avoid clipped replies (finishReason: MAX_TOKENS) for normal assistant answers.
-          maxOutputTokens: 2048
+          maxOutputTokens: 4096
         }
       },
       {

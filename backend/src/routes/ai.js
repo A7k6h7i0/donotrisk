@@ -94,6 +94,17 @@ const PRODUCT_TYPES = [
   "smartphone"
 ];
 
+const REQUIRED_SECTIONS = [
+  "Product Name",
+  "Warranty Period",
+  "Component Warranty",
+  "Covered Under Warranty",
+  "Not Covered Under Warranty",
+  "How To Claim Warranty",
+  "Required Documents",
+  "Service Contact / Support"
+];
+
 function normalizeText(value = "") {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -134,27 +145,133 @@ function getKnownWarrantyMatches({ brand, productType, question }) {
 
 const WARRANTY_SYSTEM_INSTRUCTION = `You are a product warranty expert for the DoNotRisk platform.
 
-Core behavior:
-1) Identify brand, product type, and model (if present) from the user question and context.
-2) If critical product details are missing (brand or product type), ask follow-up questions first.
-3) If model number is missing but brand and product type are known, provide best-known warranty info and clearly request model number for exact confirmation.
-4) For routers/modems/networking products, always include replacement process, RMA process, and ISP replacement rules.
-5) Prefer known warranty context provided by DoNotRisk over generic assumptions.
-6) Never respond with generic advice when concrete product context is available.
+Core rules:
+1) Always return a complete response with all required sections.
+2) Never stop mid-response and never return a partial draft.
+3) If any detail is unknown, write "Not available" for that section content.
+4) Use known DoNotRisk context first; do not invent unsupported facts.
 
-Response format rules:
-- Use clear markdown headings.
-- Keep this order exactly:
-  1. Product Name
-  2. Warranty Period
-  3. Motor / Component Warranty
-  4. What the warranty covers
-  5. What the warranty does not cover
-  6. How to claim warranty
-  7. Replacement / return process
-- If networking product: add heading "RMA / ISP Rules" after section 7.
-- If details are missing: start with heading "Follow-up Questions" and list precise required details.
-- Keep response concise but complete.`;
+Required output format:
+Here is the warranty information for your product:
+
+Product Name:
+...
+
+Warranty Period:
+...
+
+Component Warranty:
+...
+
+Covered Under Warranty:
+...
+
+Not Covered Under Warranty:
+...
+
+How To Claim Warranty:
+...
+
+Required Documents:
+...
+
+Service Contact / Support:
+...
+
+Do not omit any section. End cleanly after the last section.`;
+
+function hasAllRequiredSections(text = "") {
+  return REQUIRED_SECTIONS.every((section) => {
+    const rx = new RegExp(`(^|\\n)\\s*${section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:`, "i");
+    return rx.test(text);
+  });
+}
+
+function isLikelyTruncated(text = "") {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  // Common truncation pattern from incomplete model output.
+  if (/(what the warranty does not|not covered under warranty)\s*$/i.test(trimmed)) return true;
+  return false;
+}
+
+function isCompleteWarrantyResponse(text = "") {
+  return hasAllRequiredSections(text) && !isLikelyTruncated(text);
+}
+
+function toBulletList(values) {
+  if (!values || values.length === 0) return "Not available";
+  return values.map((item) => `- ${item}`).join("\n");
+}
+
+function buildFallbackResponse({ inferred, productContext, userWarrantyRecord, catalogMatches, knownWarrantyMatches }) {
+  const bestKnown = knownWarrantyMatches[0] || null;
+  const bestCatalog = catalogMatches[0] || null;
+  const catalogDetail = bestCatalog?.warrantyDetail || null;
+
+  const productName =
+    productContext?.product_name ||
+    bestCatalog?.name ||
+    [inferred.brand, inferred.productType].filter(Boolean).join(" ") ||
+    "Not available";
+
+  const warrantyPeriod =
+    userWarrantyRecord?.total_warranty ||
+    bestKnown?.warrantyPeriod ||
+    (typeof catalogDetail?.duration_months === "number" ? `${catalogDetail.duration_months} months` : "") ||
+    "Not available";
+
+  const componentFromUser = (userWarrantyRecord?.components || []).map((item) => `${item.component}: ${item.duration}`);
+  const componentFromKnown = (bestKnown?.componentWarranty || []).map((item) => `${item.component}: ${item.warranty}`);
+  const componentWarranty = toBulletList(componentFromUser.length ? componentFromUser : componentFromKnown);
+
+  const covered = toBulletList(bestKnown?.covers || (catalogDetail?.coverage_type ? [catalogDetail.coverage_type] : []));
+
+  const notCovered = toBulletList(
+    bestKnown?.notCovered ||
+      (catalogDetail?.void_conditions ? [catalogDetail.void_conditions] : catalogDetail?.validity_conditions ? [catalogDetail.validity_conditions] : [])
+  );
+
+  const howToClaim = toBulletList(bestKnown?.claimProcess || (catalogDetail?.claim_process ? [catalogDetail.claim_process] : []));
+
+  const requiredDocs = toBulletList(
+    catalogDetail?.registration_requirements ? [catalogDetail.registration_requirements] : ["Not available"]
+  );
+
+  const support = toBulletList(
+    isNetworkingProduct(`${inferred.productType} ${productName}`) && /airtel/i.test(`${inferred.brand} ${productName}`)
+      ? ["Airtel Customer Care: 121", "Website: https://www.airtel.in"]
+      : ["Not available"]
+  );
+
+  return [
+    "Here is the warranty information for your product:",
+    "",
+    "Product Name:",
+    productName || "Not available",
+    "",
+    "Warranty Period:",
+    warrantyPeriod || "Not available",
+    "",
+    "Component Warranty:",
+    componentWarranty,
+    "",
+    "Covered Under Warranty:",
+    covered,
+    "",
+    "Not Covered Under Warranty:",
+    notCovered,
+    "",
+    "How To Claim Warranty:",
+    howToClaim,
+    "",
+    "Required Documents:",
+    requiredDocs,
+    "",
+    "Service Contact / Support:",
+    support
+  ].join("\n");
+}
 
 router.post("/assistant", requireAuth, async (req, res) => {
   const parsed = aiSchema.safeParse(req.body);
@@ -217,24 +334,6 @@ router.post("/assistant", requireAuth, async (req, res) => {
     question
   });
 
-  const missingBrand = !(productContext?.brand || inferred.brand);
-  const missingProductType = !(
-    inferred.productType || productContext?.product_category || isNetworkingProduct(productContext?.product_name || "")
-  );
-
-  if (missingBrand || missingProductType) {
-    const followUp = [
-      "### Follow-up Questions",
-      "To provide exact warranty details, please share:",
-      "",
-      `1. Brand${missingBrand ? " (required)" : ""}`,
-      `2. Product type${missingProductType ? " (required)" : ""}`,
-      "3. Model number (recommended for exact terms)",
-      "4. Purchase date (recommended for claim eligibility)"
-    ].join("\n");
-    return res.json({ reply: followUp, answer: followUp });
-  }
-
   const structuredContext = {
     inferred_from_question: inferred,
     user_registered_product: productContext,
@@ -251,12 +350,48 @@ router.post("/assistant", requireAuth, async (req, res) => {
   };
 
   try {
-    const reply = await askGemini({
-      role: req.user.role,
-      question,
-      context: JSON.stringify(structuredContext, null, 2),
-      systemInstruction: WARRANTY_SYSTEM_INSTRUCTION
-    });
+    let reply = "";
+    let attemptQuestion = question;
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      reply = await askGemini({
+        role: req.user.role,
+        question: attemptQuestion,
+        context: JSON.stringify(structuredContext, null, 2),
+        systemInstruction: WARRANTY_SYSTEM_INSTRUCTION
+      });
+
+      if (isCompleteWarrantyResponse(reply)) break;
+
+      attemptQuestion = [
+        question,
+        "",
+        "Regenerate the response.",
+        "Your last answer was incomplete or missed required sections.",
+        "Return all sections exactly in this order and format:",
+        "Product Name:",
+        "Warranty Period:",
+        "Component Warranty:",
+        "Covered Under Warranty:",
+        "Not Covered Under Warranty:",
+        "How To Claim Warranty:",
+        "Required Documents:",
+        "Service Contact / Support:",
+        "",
+        'If any field is unknown, write "Not available". Do not end mid-sentence.'
+      ].join("\n");
+    }
+
+    if (!isCompleteWarrantyResponse(reply)) {
+      reply = buildFallbackResponse({
+        inferred,
+        productContext,
+        userWarrantyRecord,
+        catalogMatches,
+        knownWarrantyMatches
+      });
+    }
+
     // Keep "answer" for old clients, and "reply" for new clients.
     return res.json({ reply, answer: reply });
   } catch (error) {
