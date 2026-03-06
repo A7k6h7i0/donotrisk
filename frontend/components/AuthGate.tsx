@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const authPages = new Set(["/login", "/register"]);
+const authPages = new Set(["/login", "/register", "/agent/login", "/agent/register"]);
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,7 +21,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     if (token && authPages.has(pathname)) {
-      router.replace(role === "admin" ? "/admin" : "/dashboard");
+      router.replace(role === "admin" ? "/admin" : role === "agent" ? "/agent/dashboard" : "/dashboard");
+      return;
+    }
+
+    if (token && role === "agent" && !pathname.startsWith("/agent") && !pathname.startsWith("/agents")) {
+      router.replace("/agent/dashboard");
       return;
     }
 

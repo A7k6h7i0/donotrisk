@@ -5,15 +5,21 @@ import { useEffect, useMemo, useState } from "react";
 import { apiGet } from "@/lib/api";
 
 type Tracked = {
-  id: number;
+  id: string;
   product_name: string;
   brand: string;
   model_number: string;
   serial_number: string;
   purchase_date: string;
   expiry_date: string;
-  risk_score: number;
+  risk_score: number | null;
   risk_band: string;
+  source?: string;
+  registered_product_id?: string;
+  agent_name?: string;
+  agent_id?: string;
+  agent_phone?: string;
+  total_warranty?: string;
 };
 
 export default function DashboardPage() {
@@ -29,6 +35,10 @@ export default function DashboardPage() {
     }
     if (role === "admin") {
       setMessage("This page is for users. Use Admin Dashboard.");
+      return;
+    }
+    if (role === "agent") {
+      setMessage("This page is for users. Use Agent Dashboard.");
       return;
     }
     apiGet<Tracked[]>("/users/me/warranties", token)
@@ -83,16 +93,34 @@ export default function DashboardPage() {
                 {x.product_name} ({x.brand})
               </p>
               <p>Model: {x.model_number} | Serial: {x.serial_number || "-"}</p>
+              {x.registered_product_id ? <p>Registered Product ID: {x.registered_product_id}</p> : null}
               <p>
                 Expiry: {x.expiry_date || "-"} | Risk: {x.risk_score} ({x.risk_band})
               </p>
+              {x.source === "agent_registered" ? (
+                <p>
+                  Agent: {x.agent_name || "-"} ({x.agent_id || "-"}) | Phone: {x.agent_phone || "-"} | Warranty: {x.total_warranty || "-"}
+                </p>
+              ) : null}
+              {x.source === "agent_registered" ? (
+                <div className="mt-1 flex gap-3">
+                  <Link href={`/warranty/${x.id}`} className="underline">
+                    View Warranty
+                  </Link>
+                  {x.agent_id ? (
+                    <Link href={`/reviews/submit?agentId=${x.agent_id}`} className="underline">
+                      Rate Agent
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ))}
           {!items.length ? (
             <p className="text-sm text-ink/65">
               {message || "No warranties tracked yet."}{" "}
-              {(message.includes("login") || message.includes("Admin")) && (
-                <Link href={message.includes("Admin") ? "/admin" : "/login"} className="underline">
+              {(message.includes("login") || message.includes("Admin") || message.includes("Agent")) && (
+                <Link href={message.includes("Admin") ? "/admin" : message.includes("Agent") ? "/agent/dashboard" : "/login"} className="underline">
                   Go now
                 </Link>
               )}
