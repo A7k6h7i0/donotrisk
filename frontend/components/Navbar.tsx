@@ -96,14 +96,32 @@ export function Navbar() {
     window.location.href = "/login";
   }
 
-  const dashboardHref = role === "admin" ? "/admin" : "/dashboard";
-  const dashboardLabel = role === "admin" ? "Admin Dashboard" : "My Dashboard";
-  const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/categories", label: "Categories" },
-    { href: "/scanner", label: "Scanner" },
-    { href: dashboardHref, label: dashboardLabel }
-  ];
+  const dashboardHref = role === "admin" ? "/admin" : role === "agent" ? "/agent/dashboard" : "/dashboard";
+  const dashboardLabel = role === "admin" ? "Admin Dashboard" : role === "agent" ? "Agent Dashboard" : "My Dashboard";
+  const navLinks =
+    role === "agent"
+        ? [
+            { href: "/agent/dashboard", label: "Dashboard" },
+            { href: "/agent/register-product", label: "Register Product" },
+            { href: "/agent/add-warranty", label: "Add Warranty" },
+            { href: "/agent/customers", label: "Customers" }
+          ]
+      : role === "admin"
+        ? [
+            { href: "/admin", label: "Admin Home" },
+            { href: "/admin/agents", label: "Manage Agents" },
+            { href: "/admin/reviews", label: "Reviews" },
+            { href: "/admin/products", label: "Products" },
+            { href: "/assistant", label: "AI Assistant" }
+          ]
+        : [
+            { href: "/", label: "Home" },
+            { href: "/categories", label: "Categories" },
+            { href: "/scanner", label: "Scanner" },
+            { href: "/agents", label: "Browse Agents" },
+            { href: "/assistant", label: "AI Assistant" },
+            { href: dashboardHref, label: dashboardLabel }
+          ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink/10 bg-paper/90 backdrop-blur">

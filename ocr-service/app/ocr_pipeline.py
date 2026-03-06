@@ -142,7 +142,7 @@ def easy_ocr_text(image: np.ndarray) -> str:
 
 def tesseract_text(image: np.ndarray) -> str:
     tesseract_cmd = os.getenv("TESSERACT_CMD")
-    if tesseract_cmd:
+    if tesseract_cmd and os.path.exists(tesseract_cmd):
         pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     best = ""

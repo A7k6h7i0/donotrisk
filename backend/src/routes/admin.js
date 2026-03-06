@@ -9,6 +9,9 @@ import { WarrantyDetail } from "../models/WarrantyDetail.js";
 import { ProsCons } from "../models/ProsCons.js";
 import { ScannedWarranty } from "../models/ScannedWarranty.js";
 import { User } from "../models/User.js";
+import { AgentProfile } from "../models/AgentProfile.js";
+import { AgentReview } from "../models/AgentReview.js";
+import { RegisteredProduct } from "../models/RegisteredProduct.js";
 
 const router = express.Router();
 
@@ -138,6 +141,84 @@ router.get("/scans", async (_req, res) => {
   } catch {
     return res.status(500).json({ message: "Failed to fetch scans." });
   }
+});
+
+router.get("/agents", async (_req, res) => {
+  const rows = await AgentProfile.find()
+    .sort({ created_at: -1 })
+    .select("name agent_id email phone location specialization is_verified average_rating total_customers total_registrations created_at")
+    .lean();
+  return res.json(
+    rows.map((item) => ({
+      id: String(item._id),
+      name: item.name,
+      agentId: item.agent_id,
+      email: item.email,
+      phone: item.phone,
+      location: item.location,
+      specialization: item.specialization,
+      isVerified: item.is_verified,
+      averageRating: item.average_rating,
+      totalCustomers: item.total_customers,
+      totalRegistrations: item.total_registrations,
+      createdAt: item.created_at
+    }))
+  );
+});
+
+router.patch("/agents/:id/verify", async (req, res) => {
+  const result = await AgentProfile.findByIdAndUpdate(req.params.id, { is_verified: Boolean(req.body?.isVerified) }, { new: true }).lean();
+  if (!result) return res.status(404).json({ message: "Agent not found" });
+  return res.json({ id: String(result._id), isVerified: result.is_verified });
+});
+
+router.get("/reviews", async (_req, res) => {
+  const rows = await AgentReview.find()
+    .sort({ created_at: -1 })
+    .populate("agent_id", "name agent_id")
+    .populate("user_id", "name")
+    .lean();
+  return res.json(
+    rows.map((item) => ({
+      id: String(item._id),
+      agentName: item.agent_id?.name || null,
+      agentId: item.agent_id?.agent_id || null,
+      userName: item.user_id?.name || null,
+      rating: item.rating,
+      review: item.review,
+      serviceSpeed: item.service_speed,
+      agentBehavior: item.agent_behavior,
+      documentationQuality: item.documentation_quality,
+      moderated: item.is_moderated,
+      createdAt: item.created_at
+    }))
+  );
+});
+
+router.get("/registered-products", async (_req, res) => {
+  const rows = await RegisteredProduct.find()
+    .sort({ created_at: -1 })
+    .populate("agent_id", "name agent_id")
+    .populate("user_id", "name email")
+    .lean();
+  return res.json(
+    rows.map((item) => ({
+      id: String(item._id),
+      customerName: item.customer_name,
+      customerEmail: item.customer_email,
+      productName: item.product_name,
+      brand: item.brand,
+      modelNumber: item.model_number,
+      category: item.product_category,
+      purchaseDate: item.purchase_date,
+      invoiceNumber: item.invoice_number,
+      agentName: item.agent_id?.name || null,
+      agentId: item.agent_id?.agent_id || null,
+      linkedUserName: item.user_id?.name || null,
+      linkedUserEmail: item.user_id?.email || null,
+      createdAt: item.created_at
+    }))
+  );
 });
 
 export default router;

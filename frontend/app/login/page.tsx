@@ -20,7 +20,7 @@ export default function LoginPage() {
       localStorage.setItem("role", data.user.role);
       localStorage.setItem("user_name", data.user.name || "");
       localStorage.setItem("user_email", data.user.email || "");
-      router.push(data.user.role === "admin" ? "/admin" : "/dashboard");
+      router.push(data.user.role === "admin" ? "/admin" : data.user.role === "agent" ? "/agent/dashboard" : "/dashboard");
     } catch {
       setError("Invalid credentials");
     }
@@ -37,6 +37,9 @@ export default function LoginPage() {
       </form>
       <p className="mt-3 text-sm text-ink/70">
         New user? <Link href="/register" className="underline">Create account</Link>
+      </p>
+      <p className="mt-1 text-sm text-ink/70">
+        Agent? <Link href="/agent/login" className="underline">Agent Sign In</Link>
       </p>
     </section>
   );
