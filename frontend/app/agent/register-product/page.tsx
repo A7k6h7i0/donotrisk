@@ -15,12 +15,20 @@ const defaultForm = {
   purchaseDate: "",
   invoiceNumber: "",
   purchaseStore: "",
-  productCategory: "Television",
   proofType: "agent_confirmation",
   purchaseProofUrl: ""
 };
 
-const categories = ["Television", "Refrigerator", "Mobile", "Router", "Laptop", "Washing Machine"];
+function inferProductCategory(productName: string) {
+  const value = productName.toLowerCase();
+  if (value.includes("tv") || value.includes("television")) return "Television";
+  if (value.includes("refrigerator") || value.includes("fridge")) return "Refrigerator";
+  if (value.includes("mobile") || value.includes("phone") || value.includes("smartphone")) return "Mobile";
+  if (value.includes("router") || value.includes("modem")) return "Router";
+  if (value.includes("laptop") || value.includes("notebook")) return "Laptop";
+  if (value.includes("washing machine") || value.includes("washer")) return "Washing Machine";
+  return "General";
+}
 
 export default function AgentRegisterProductPage() {
   const [form, setForm] = useState(defaultForm);
@@ -42,6 +50,7 @@ export default function AgentRegisterProductPage() {
         "/agents/register-product",
         {
           ...form,
+          productCategory: inferProductCategory(form.productName),
           purchaseProofUrl
         },
         token
@@ -60,22 +69,6 @@ export default function AgentRegisterProductPage() {
       <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
         {Object.entries(form).map(([key, value]) => {
           if (key === "purchaseProofUrl") return null;
-          if (key === "productCategory") {
-            return (
-              <select
-                key={key}
-                className="rounded-lg border border-ink/20 p-2"
-                value={value}
-                onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-              >
-                {categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            );
-          }
           if (key === "proofType") {
             return (
               <select
