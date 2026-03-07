@@ -9,10 +9,16 @@ import { WarrantyDetail } from "../models/WarrantyDetail.js";
 
 const router = express.Router();
 
+const historyItemSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1).max(4000)
+});
+
 const aiSchema = z.object({
   message: z.string().min(1).optional(),
   question: z.string().min(1).optional(),
-  productId: z.string().optional().default("")
+  productId: z.string().optional().default(""),
+  history: z.array(historyItemSchema).max(12).optional().default([])
 }).refine((data) => Boolean((data.message || data.question || "").trim()), {
   message: "message is required"
 });
@@ -94,16 +100,7 @@ const PRODUCT_TYPES = [
   "smartphone"
 ];
 
-const REQUIRED_SECTIONS = [
-  "Product Name",
-  "Warranty Period",
-  "Component Warranty",
-  "Covered Under Warranty",
-  "Not Covered Under Warranty",
-  "How To Claim Warranty",
-  "Required Documents",
-  "Service Contact / Support"
-];
+const REQUIRED_SECTIONS = ["Introduction", "Warranty Details", "Process Steps", "Summary"];
 
 function normalizeText(value = "") {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -143,42 +140,41 @@ function getKnownWarrantyMatches({ brand, productType, question }) {
   });
 }
 
-const WARRANTY_SYSTEM_INSTRUCTION = `You are a product warranty expert for the DoNotRisk platform.
+const WARRANTY_SYSTEM_INSTRUCTION = `You are DoNotRisk's professional customer support assistant for warranty and product queries.
 
-Core rules:
-1) Always return a complete response with all required sections.
-2) Never stop mid-response and never return a partial draft.
-3) If any detail is unknown, write "Not available" for that section content.
-4) Use known DoNotRisk context first; do not invent unsupported facts.
+Core behavior rules:
+1) Always answer in simple, user-friendly language.
+2) Be accurate and grounded in the provided DoNotRisk context.
+3) Do not invent facts. If data is missing, say "Not available".
+4) Use conversation history for follow-up questions and keep topic continuity.
+5) If local context is insufficient, use web-grounded information from reliable sources.
+6) For web-grounded facts, include source links under "Sources" at the end.
+7) Never stop mid-response. Always complete all sections.
+8) Use clear headings, bullet points, and step-by-step numbered actions.
 
-Required output format:
-Here is the warranty information for your product:
+Mandatory output format (use this exact order and labels):
+Introduction:
+- 2-4 short bullet points with direct answer context.
 
-Product Name:
-...
+Warranty Details:
+- Product Name: ...
+- Warranty Period: ...
+- Component Warranty: ...
+- Covered Under Warranty: ...
+- Not Covered Under Warranty: ...
+- Required Documents: ...
+- Service Contact / Support: ...
 
-Warranty Period:
-...
+Process Steps:
+1. ...
+2. ...
+3. ...
 
-Component Warranty:
-...
+Summary:
+- 2-4 short bullet points with key takeaways and next action.
 
-Covered Under Warranty:
-...
-
-Not Covered Under Warranty:
-...
-
-How To Claim Warranty:
-...
-
-Required Documents:
-...
-
-Service Contact / Support:
-...
-
-Do not omit any section. End cleanly after the last section.`;
+Always include all four sections.
+Always end with this exact final line: End of response.`;
 
 function hasAllRequiredSections(text = "") {
   return REQUIRED_SECTIONS.every((section) => {
@@ -190,13 +186,19 @@ function hasAllRequiredSections(text = "") {
 function isLikelyTruncated(text = "") {
   const trimmed = text.trim();
   if (!trimmed) return true;
-  // Common truncation pattern from incomplete model output.
-  if (/(what the warranty does not|not covered under warranty)\s*$/i.test(trimmed)) return true;
+  if (!/end of response\.\s*$/i.test(trimmed)) return true;
+  // Common truncation patterns from incomplete model output.
+  if (/(what the warranty does not|not covered under warranty|process steps)\s*:?$/i.test(trimmed)) return true;
   return false;
 }
 
 function isCompleteWarrantyResponse(text = "") {
   return hasAllRequiredSections(text) && !isLikelyTruncated(text);
+}
+
+function isLowInformationResponse(text = "") {
+  const matches = text.match(/not available/gi) || [];
+  return matches.length >= 4;
 }
 
 function toBulletList(values) {
@@ -244,32 +246,41 @@ function buildFallbackResponse({ inferred, productContext, userWarrantyRecord, c
       : ["Not available"]
   );
 
+  const processSteps = toBulletList(
+    bestKnown?.claimProcess ||
+      bestKnown?.replacementOrReturn ||
+      (catalogDetail?.claim_process ? [catalogDetail.claim_process] : ["Contact support and share product details"])
+  )
+    .split("\n")
+    .map((line, index) => `${index + 1}. ${line.replace(/^-+\s*/, "")}`)
+    .join("\n");
+
   return [
-    "Here is the warranty information for your product:",
+    "Introduction:",
+    "- Here are the available warranty and support details for your product query.",
+    "- The response is based on DoNotRisk records and known brand policy patterns.",
+    "- Any missing item is marked as Not available.",
     "",
-    "Product Name:",
-    productName || "Not available",
-    "",
-    "Warranty Period:",
-    warrantyPeriod || "Not available",
-    "",
-    "Component Warranty:",
+    "Warranty Details:",
+    `- Product Name: ${productName || "Not available"}`,
+    `- Warranty Period: ${warrantyPeriod || "Not available"}`,
+    "- Component Warranty:",
     componentWarranty,
-    "",
-    "Covered Under Warranty:",
+    "- Covered Under Warranty:",
     covered,
-    "",
-    "Not Covered Under Warranty:",
+    "- Not Covered Under Warranty:",
     notCovered,
+    `- Required Documents: ${requiredDocs.replace(/\n+/g, "; ")}`,
+    `- Service Contact / Support: ${support.replace(/\n+/g, "; ")}`,
     "",
-    "How To Claim Warranty:",
-    howToClaim,
+    "Process Steps:",
+    processSteps,
     "",
-    "Required Documents:",
-    requiredDocs,
-    "",
-    "Service Contact / Support:",
-    support
+    "Summary:",
+    "- Verify invoice and serial number before raising a request.",
+    "- Follow the support steps above to claim warranty or return guidance.",
+    "- If your exact model policy differs, confirm once with official support.",
+    "End of response."
   ].join("\n");
 }
 
@@ -278,8 +289,10 @@ router.post("/assistant", requireAuth, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
 
   const question = (parsed.data.message || parsed.data.question || "").trim();
-  const { productId } = parsed.data;
-  const inferred = inferProductHints(question);
+  const { productId, history } = parsed.data;
+  const historyText = history.map((item) => `${item.role}: ${item.content}`).join("\n");
+  const combinedQuestion = [historyText, question].filter(Boolean).join("\n");
+  const inferred = inferProductHints(combinedQuestion);
   let productContext = null;
   let userWarrantyRecord = null;
   let catalogMatches = [];
@@ -331,10 +344,11 @@ router.post("/assistant", requireAuth, async (req, res) => {
   knownWarrantyMatches = getKnownWarrantyMatches({
     brand: inferred.brand || productContext?.brand || "",
     productType: inferred.productType || "",
-    question
+    question: combinedQuestion
   });
 
   const structuredContext = {
+    conversation_history: history,
     inferred_from_question: inferred,
     user_registered_product: productContext,
     user_warranty_record: userWarrantyRecord,
@@ -349,40 +363,43 @@ router.post("/assistant", requireAuth, async (req, res) => {
     }
   };
 
+  const shouldPreferWebGrounding = !productContext && catalogMatches.length === 0 && knownWarrantyMatches.length === 0;
+
   try {
     let reply = "";
     let attemptQuestion = question;
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const enableWebSearch = shouldPreferWebGrounding || attempt > 1;
       reply = await askGemini({
         role: req.user.role,
         question: attemptQuestion,
         context: JSON.stringify(structuredContext, null, 2),
-        systemInstruction: WARRANTY_SYSTEM_INSTRUCTION
+        systemInstruction: WARRANTY_SYSTEM_INSTRUCTION,
+        enableWebSearch
       });
 
-      if (isCompleteWarrantyResponse(reply)) break;
+      if (isCompleteWarrantyResponse(reply) && !isLowInformationResponse(reply)) break;
 
       attemptQuestion = [
         question,
         "",
         "Regenerate the response.",
         "Your last answer was incomplete or missed required sections.",
-        "Return all sections exactly in this order and format:",
-        "Product Name:",
-        "Warranty Period:",
-        "Component Warranty:",
-        "Covered Under Warranty:",
-        "Not Covered Under Warranty:",
-        "How To Claim Warranty:",
-        "Required Documents:",
-        "Service Contact / Support:",
+        "If local product data is missing, use web-grounded sources for accurate policy details.",
+        "Add source links under a 'Sources:' block.",
+        "Return all sections exactly in this order and labels:",
+        "Introduction:",
+        "Warranty Details:",
+        "Process Steps:",
+        "Summary:",
         "",
-        'If any field is unknown, write "Not available". Do not end mid-sentence.'
+        'Use bullets and numbered steps. If any field is unknown, write "Not available".',
+        'End with this exact final line: End of response.'
       ].join("\n");
     }
 
-    if (!isCompleteWarrantyResponse(reply)) {
+    if (!isCompleteWarrantyResponse(reply) || isLowInformationResponse(reply)) {
       reply = buildFallbackResponse({
         inferred,
         productContext,
