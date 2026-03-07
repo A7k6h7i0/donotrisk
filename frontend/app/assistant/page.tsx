@@ -7,6 +7,43 @@ type AssistantResponse = {
   reply: string;
 };
 
+function sanitizeAnswer(text: string) {
+  return text.replace(/\n?End of response\.\s*$/i, "").trimEnd();
+}
+
+function renderAnswerWithLinks(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const lines = sanitizeAnswer(text).split("\n");
+
+  return (
+    <div className="mt-2 space-y-1 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+      {lines.map((line, lineIndex) => {
+        const parts = line.split(urlRegex);
+        return (
+          <p key={`${lineIndex}-${line}`}>
+            {parts.map((part, partIndex) => {
+              if (/^https?:\/\/[^\s]+$/i.test(part)) {
+                return (
+                  <a
+                    key={`${lineIndex}-${partIndex}-${part}`}
+                    href={part}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="text-blue-700 underline break-all"
+                  >
+                    {part}
+                  </a>
+                );
+              }
+              return <span key={`${lineIndex}-${partIndex}-${part}`}>{part}</span>;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AssistantPage() {
   const [question, setQuestion] = useState("");
   const [productId, setProductId] = useState("");
@@ -81,7 +118,7 @@ export default function AssistantPage() {
       {answer ? (
         <article className="rounded-2xl border border-ink/10 bg-white p-4">
           <h2 className="font-display text-xl">AI Response</h2>
-          <pre className="mt-2 whitespace-pre-wrap text-sm">{answer}</pre>
+          {renderAnswerWithLinks(answer)}
         </article>
       ) : null}
     </section>
