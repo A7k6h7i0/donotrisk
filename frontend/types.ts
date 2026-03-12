@@ -3,6 +3,8 @@ export type Category = {
   name: string;
   parent_id: string | null;
   parent_name?: string | null;
+  icon?: string;
+  image?: string;
 };
 
 export type Product = {
@@ -15,4 +17,7 @@ export type Product = {
   risk_score: number;
   risk_band: "Low" | "Moderate" | "High" | string;
   category_name?: string;
+  image?: string;
+  icon?: string;
+  initial?: string;
 };

@@ -8,6 +8,7 @@ const productSchema = new mongoose.Schema(
     category_id: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
     description: { type: String, required: true },
     release_date: { type: Date, required: true },
+    image: { type: String, default: "" },
     servicing_frequency_per_year: { type: Number, default: 0 },
     warranty_complexity: { type: Number, default: 5 },
     failure_rate: { type: Number, default: 5 },

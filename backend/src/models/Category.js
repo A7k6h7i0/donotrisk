@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 const categorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    parent_id: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null }
+    parent_id: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
+    icon: { type: String, default: "" },
+    image: { type: String, default: "" }
   },
   { timestamps: { createdAt: "created_at", updatedAt: false } }
 );

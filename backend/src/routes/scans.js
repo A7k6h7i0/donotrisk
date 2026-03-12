@@ -5,6 +5,7 @@ import fs from "fs";
 import axios from "axios";
 import { requireAuth } from "../middleware/auth.js";
 import { extractFromWarrantyFile } from "../services/ocrClient.js";
+import { askGemini } from "../services/geminiClient.js";
 import { Product } from "../models/Product.js";
 import { ScannedWarranty } from "../models/ScannedWarranty.js";
 import { env } from "../config/env.js";
@@ -449,6 +450,186 @@ router.get("/me", requireAuth, async (req, res) => {
       risk_band: r.product_id?.risk_band || null
     }))
   );
+});
+
+// AI Analysis system instruction for warranty scanning
+const WARRANTY_ANALYSIS_INSTRUCTION = `You are DoNotRisk's AI warranty analyst. Your role is to analyze warranty documents and provide structured analysis.
+
+Analyze the extracted warranty text and return results in exactly this format:
+
+## Warranty Coverage
+[Provide a clear summary of what the warranty covers]
+
+## Key Terms
+- [List important warranty terms and conditions]
+- [Include warranty duration, coverage type, and any special conditions]
+
+## Detected Exclusions
+- [List all exclusions and what is NOT covered]
+- [Include common exclusions like physical damage, water damage, etc.]
+
+## Risk Level
+[Provide a risk assessment: Low Risk / Medium Risk / High Risk]
+
+## Claim Requirements
+- [List what is needed to make a claim]
+- [Include required documents, process, and contact information]
+
+Always provide accurate analysis based ONLY on the extracted text. If information is not available in the text, state "Not specified in document" for that section.
+
+End your response with this exact line: End of analysis.`;
+
+// New endpoint: Extract and analyze warranty with AI
+router.post("/analyze", requireAuth, upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "File required" });
+
+  let extracted;
+  try {
+    extracted = await extractFromWarrantyFile(req.file.path, req.file.originalname, req.file.mimetype);
+  } catch (error) {
+    const mapped = mapOcrFailure(error);
+    return res.status(mapped.status).json({ message: mapped.message });
+  }
+
+  const enriched = extractFromRawText(extracted);
+  const match = await matchProduct(enriched);
+  const scanResponse = formatScanResponse(enriched, match);
+
+  // Now analyze with AI
+  const rawText = enriched.raw_text || "";
+  if (!rawText || rawText.length < 10) {
+    return res.json({
+      ...scanResponse,
+      analysis: {
+        coverage: "Unable to analyze - insufficient text extracted from document.",
+        keyTerms: ["No key terms extracted"],
+        exclusions: ["No exclusions detected"],
+        riskLevel: "Unknown",
+        claimRequirements: ["Please upload a clearer image"]
+      }
+    });
+  }
+
+  const analysisPrompt = `Please analyze the following warranty document text and provide structured insights:\n\n${rawText}`;
+
+  try {
+    const aiResponse = await askGemini({
+      role: req.user.role,
+      question: analysisPrompt,
+      context: "",
+      systemInstruction: WARRANTY_ANALYSIS_INSTRUCTION,
+      enableWebSearch: false
+    });
+
+    // Parse the AI response into structured sections
+    const analysis = parseWarrantyAnalysis(aiResponse);
+
+    return res.json({
+      ...scanResponse,
+      analysis
+    });
+  } catch (aiError) {
+    // Return OCR results even if AI analysis fails
+    return res.json({
+      ...scanResponse,
+      analysis: {
+        coverage: "AI analysis unavailable. Please try again later.",
+        keyTerms: ["Analysis service temporarily unavailable"],
+        exclusions: ["Could not analyze exclusions"],
+        riskLevel: "Unknown",
+        claimRequirements: ["Please try again later"]
+      }
+    });
+  }
+});
+
+// Helper function to parse AI analysis response
+function parseWarrantyAnalysis(aiResponse) {
+  const sections = {
+    coverage: "",
+    keyTerms: [],
+    exclusions: [],
+    riskLevel: "Medium Risk",
+    claimRequirements: []
+  };
+
+  if (!aiResponse) return sections;
+
+  // Extract Warranty Coverage
+  const coverageMatch = aiResponse.match(/##\s*Warranty Coverage\s*([\s\S]*?)(?=##|$)/i);
+  if (coverageMatch) {
+    sections.coverage = coverageMatch[1].replace(/^\s*-\s*/gm, "").trim();
+  }
+
+  // Extract Key Terms
+  const keyTermsMatch = aiResponse.match(/##\s*Key Terms\s*([\s\S]*?)(?=##|$)/i);
+  if (keyTermsMatch) {
+    sections.keyTerms = keyTermsMatch[1]
+      .split("\n")
+      .map(line => line.replace(/^-\s*/, "").trim())
+      .filter(line => line.length > 0);
+  }
+
+  // Extract Detected Exclusions
+  const exclusionsMatch = aiResponse.match(/##\s*Detected Exclusions\s*([\s\S]*?)(?=##|$)/i);
+  if (exclusionsMatch) {
+    sections.exclusions = exclusionsMatch[1]
+      .split("\n")
+      .map(line => line.replace(/^-\s*/, "").trim())
+      .filter(line => line.length > 0);
+  }
+
+  // Extract Risk Level
+  const riskMatch = aiResponse.match(/##\s*Risk Level\s*([\s\S]*?)(?=##|$)/i);
+  if (riskMatch) {
+    const riskText = riskMatch[1].trim();
+    if (/low\s*risk/i.test(riskText)) sections.riskLevel = "Low Risk";
+    else if (/high\s*risk/i.test(riskText)) sections.riskLevel = "High Risk";
+    else if (/medium\s*risk/i.test(riskText)) sections.riskLevel = "Medium Risk";
+    else sections.riskLevel = riskText;
+  }
+
+  // Extract Claim Requirements
+  const claimMatch = aiResponse.match(/##\s*Claim Requirements\s*([\s\S]*?)(?=##|$)/i);
+  if (claimMatch) {
+    sections.claimRequirements = claimMatch[1]
+      .split("\n")
+      .map(line => line.replace(/^-\s*/, "").trim())
+      .filter(line => line.length > 0);
+  }
+
+  return sections;
+}
+
+// New endpoint: Analyze text directly (for URL extractions)
+router.post("/analyze-text", requireAuth, async (req, res) => {
+  const { text } = req.body;
+  
+  if (!text || typeof text !== "string" || text.length < 10) {
+    return res.status(400).json({ 
+      message: "Valid warranty text is required for analysis" 
+    });
+  }
+
+  const analysisPrompt = `Please analyze the following warranty document text and provide structured insights:\n\n${text}`;
+
+  try {
+    const aiResponse = await askGemini({
+      role: req.user.role,
+      question: analysisPrompt,
+      context: "",
+      systemInstruction: WARRANTY_ANALYSIS_INSTRUCTION,
+      enableWebSearch: false
+    });
+
+    const analysis = parseWarrantyAnalysis(aiResponse);
+    return res.json({ analysis });
+  } catch (aiError) {
+    return res.status(500).json({ 
+      message: "AI analysis failed", 
+      detail: aiError instanceof Error ? aiError.message : "Unknown error" 
+    });
+  }
 });
 
 export default router;
