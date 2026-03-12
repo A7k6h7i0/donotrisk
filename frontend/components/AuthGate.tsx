@@ -5,6 +5,24 @@ import { usePathname, useRouter } from "next/navigation";
 
 const authPages = new Set(["/login", "/register", "/agent/login", "/agent/register"]);
 
+// Public pages that don't require login
+const publicPages = new Set([
+  "/",
+  "/categories",
+  "/services",
+  "/features",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/disclaimer"
+]);
+
+// Check if path is a public category or product page
+function isPublicContentPath(pathname: string): boolean {
+  return pathname.startsWith("/categories/") || pathname.startsWith("/products/");
+}
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -14,6 +32,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setReady(false);
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
+
+    // Allow public pages without authentication
+    if (publicPages.has(pathname) || isPublicContentPath(pathname)) {
+      setReady(true);
+      return;
+    }
 
     if (!token && !authPages.has(pathname)) {
       router.replace("/login");

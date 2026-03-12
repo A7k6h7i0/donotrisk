@@ -184,9 +184,13 @@ export function Navbar() {
         ) : (
           <div className="flex items-center gap-4 text-sm text-ink/60">
             <nav className="hidden items-center gap-2 md:flex">
-              <Link href="/about" className="hover:text-ink">About</Link>
+              <Link href="/" className="hover:text-ink">Home</Link>
+              <Link href="/categories" className="hover:text-ink">Products</Link>
               <Link href="/services" className="hover:text-ink">Services</Link>
               <Link href="/features" className="hover:text-ink">Features</Link>
+              <Link href="/scanner" className="hover:text-ink">Scanner</Link>
+              <Link href="/assistant" className="hover:text-ink">AI Assistant</Link>
+              <Link href="/about" className="hover:text-ink">About</Link>
               <Link href="/contact" className="hover:text-ink">Contact</Link>
             </nav>
             <Link href="/login" className="rounded-full bg-ink px-4 py-2 text-paper hover:bg-ink/90">
