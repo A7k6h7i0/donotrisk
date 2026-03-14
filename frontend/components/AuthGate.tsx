@@ -26,18 +26,18 @@ function isPublicContentPath(pathname: string): boolean {
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const isPublic = publicPages.has(pathname) || isPublicContentPath(pathname);
+  const [ready, setReady] = useState(isPublic);
 
   useEffect(() => {
+    if (isPublic) {
+      if (!ready) setReady(true);
+      return;
+    }
+
     setReady(false);
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
-
-    // Allow public pages without authentication
-    if (publicPages.has(pathname) || isPublicContentPath(pathname)) {
-      setReady(true);
-      return;
-    }
 
     if (!token && !authPages.has(pathname)) {
       router.replace("/login");
@@ -55,8 +55,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     setReady(true);
-  }, [pathname, router]);
+  }, [pathname, router, isPublic, ready]);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center text-sm text-ink/60">
+        Checking session...
+      </div>
+    );
+  }
   return <>{children}</>;
 }
