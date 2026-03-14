@@ -26,10 +26,12 @@ export function HomeActions() {
           animate={{ opacity: 1, translateX: 0 }}
           transition={{ delay: 0.3 }}
         >
-          →
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
         </motion.span>
       </motion.button>
-      
+
       <motion.button
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.98 }}
@@ -42,7 +44,9 @@ export function HomeActions() {
           animate={{ opacity: 1, translateX: 0 }}
           transition={{ delay: 0.3 }}
         >
-          →
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
         </motion.span>
       </motion.button>
     </div>

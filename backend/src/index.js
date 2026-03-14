@@ -7,6 +7,7 @@ import { Category } from "./models/Category.js";
 import { Product } from "./models/Product.js";
 import { WarrantyDetail } from "./models/WarrantyDetail.js";
 import { ProsCons } from "./models/ProsCons.js";
+import { startScheduler } from "./services/scheduler.js";
 
 async function bootstrapIfEmpty() {
   const count = await User.countDocuments();
@@ -53,6 +54,10 @@ async function bootstrapIfEmpty() {
 async function start() {
   await connectMongo();
   await bootstrapIfEmpty();
+  
+  // Start the warranty expiry check scheduler
+  startScheduler();
+  
   app.listen(env.port, () => {
     console.log(`Backend running on port ${env.port}`);
   });

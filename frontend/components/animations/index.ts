@@ -3,3 +3,4 @@ export { StaggerContainer, StaggerItem } from "./StaggerContainer";
 export { ScrollCounter } from "./ScrollCounter";
 export { Section } from "./Section";
 export { TextReveal } from "./TextReveal";
+export { PageWrapper, StaggerWrapper, StaggerItem as StaggerItemAnim, ScaleWrapper } from "./PageWrapper";

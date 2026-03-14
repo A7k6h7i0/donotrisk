@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiGet } from "@/lib/api";
+import { EnableNotifications } from "@/components/EnableNotifications";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 type Tracked = {
   id: string;
@@ -69,7 +71,12 @@ export default function DashboardPage() {
 
   return (
     <section className="space-y-5">
-      <h1 className="font-display text-3xl">User Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl">User Dashboard</h1>
+        <div className="flex gap-3">
+          <EnableNotifications />
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-ink/10 bg-white p-4">
           <p className="text-sm text-ink/60">Active Warranties</p>
@@ -128,6 +135,7 @@ export default function DashboardPage() {
           ) : null}
         </div>
       </div>
+      <NotificationPreferences />
     </section>
   );
 }

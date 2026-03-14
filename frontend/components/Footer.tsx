@@ -105,7 +105,7 @@ export function Footer() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="group/l inline-flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors duration-300"
+                      className="group/l inline-flex items-center gap-2 text-sm text-surface-500 hover:text-white transition-colors duration-300"
                     >
                       <span
                         className="h-px transition-all duration-300 w-0 group-hover/l:w-5"

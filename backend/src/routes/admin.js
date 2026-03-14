@@ -12,6 +12,7 @@ import { User } from "../models/User.js";
 import { AgentProfile } from "../models/AgentProfile.js";
 import { AgentReview } from "../models/AgentReview.js";
 import { RegisteredProduct } from "../models/RegisteredProduct.js";
+import { triggerCheck } from "../services/scheduler.js";
 
 const router = express.Router();
 
@@ -219,6 +220,21 @@ router.get("/registered-products", async (_req, res) => {
       createdAt: item.created_at
     }))
   );
+});
+
+// Manually trigger warranty expiry check
+router.post("/trigger-warranty-check", async (req, res) => {
+  try {
+    const result = await triggerCheck();
+    return res.json({ 
+      success: true, 
+      message: "Warranty check completed",
+      details: result
+    });
+  } catch (error) {
+    console.error("Error triggering warranty check:", error);
+    return res.status(500).json({ message: "Failed to run warranty check" });
+  }
 });
 
 export default router;

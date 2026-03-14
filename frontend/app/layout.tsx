@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AuthGate } from "@/components/AuthGate";
+import { OneSignalProvider } from "@/components/OneSignalProvider";
 
 export const metadata: Metadata = {
   title: "DoNotRisk - Warranty Intelligence Platform",
@@ -19,11 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="scroll-smooth">
       <body className="bg-atmosphere min-h-screen flex flex-col antialiased">
-        <Navbar />
-        <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <AuthGate>{children}</AuthGate>
-        </main>
-        <Footer />
+        <OneSignalProvider>
+          <Navbar />
+          <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+            <AuthGate>{children}</AuthGate>
+          </main>
+          <Footer />
+        </OneSignalProvider>
       </body>
     </html>
   );

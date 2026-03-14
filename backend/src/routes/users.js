@@ -4,6 +4,8 @@ import { ScannedWarranty } from "../models/ScannedWarranty.js";
 import { RegisteredProduct } from "../models/RegisteredProduct.js";
 import { WarrantyRecord } from "../models/WarrantyRecord.js";
 import { AgentProfile } from "../models/AgentProfile.js";
+import { User } from "../models/User.js";
+import { z } from "zod";
 
 const router = express.Router();
 
@@ -100,6 +102,91 @@ router.get("/me/registered-products", requireAuth, async (req, res) => {
       };
     })
   );
+});
+
+// Save OneSignal Player ID for push notifications
+const saveNotificationIdSchema = z.object({
+  playerId: z.string().min(1, "Player ID is required")
+});
+
+router.get("/me/notification-preferences", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("notification_preferences");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.json(user.notification_preferences || {
+      enabled: true,
+      expiry_reminder_30_days: true,
+      expiry_reminder_7_days: true,
+      expiry_reminder_1_day: true
+    });
+  } catch (error) {
+    console.error("Error fetching notification preferences:", error);
+    return res.status(500).json({ message: "Failed to fetch notification preferences" });
+  }
+});
+
+router.post("/me/notification-id", requireAuth, async (req, res) => {
+  try {
+    const parsed = saveNotificationIdSchema.parse(req.body);
+    const { playerId } = parsed;
+
+    await User.findByIdAndUpdate(req.user.id, {
+      onesignal_player_id: playerId
+    });
+
+    return res.json({ success: true, message: "Notification ID saved successfully" });
+  } catch (error) {
+    if (error.name === "ZodError") {
+      return res.status(400).json({ message: error.errors[0].message });
+    }
+    console.error("Error saving notification ID:", error);
+    return res.status(500).json({ message: "Failed to save notification ID" });
+  }
+});
+
+// Update notification preferences
+const notificationPreferencesSchema = z.object({
+  enabled: z.boolean().optional(),
+  expiry_reminder_30_days: z.boolean().optional(),
+  expiry_reminder_7_days: z.boolean().optional(),
+  expiry_reminder_1_day: z.boolean().optional()
+});
+
+router.patch("/me/notification-preferences", requireAuth, async (req, res) => {
+  try {
+    const parsed = notificationPreferencesSchema.parse(req.body);
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update only provided fields
+    if (parsed.enabled !== undefined) {
+      user.notification_preferences.enabled = parsed.enabled;
+    }
+    if (parsed.expiry_reminder_30_days !== undefined) {
+      user.notification_preferences.expiry_reminder_30_days = parsed.expiry_reminder_30_days;
+    }
+    if (parsed.expiry_reminder_7_days !== undefined) {
+      user.notification_preferences.expiry_reminder_7_days = parsed.expiry_reminder_7_days;
+    }
+    if (parsed.expiry_reminder_1_day !== undefined) {
+      user.notification_preferences.expiry_reminder_1_day = parsed.expiry_reminder_1_day;
+    }
+
+    await user.save();
+
+    return res.json({ success: true, message: "Notification preferences updated successfully" });
+  } catch (error) {
+    if (error.name === "ZodError") {
+      return res.status(400).json({ message: error.errors[0].message });
+    }
+    console.error("Error updating notification preferences:", error);
+    return res.status(500).json({ message: "Failed to update notification preferences" });
+  }
 });
 
 export default router;
