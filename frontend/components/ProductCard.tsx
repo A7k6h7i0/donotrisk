@@ -22,7 +22,17 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       : "Warranty description is being prepared for this product.";
 
   const displayIcon = product.image
-    ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+    ? (
+        <img
+          src={product.image}
+          alt={product.name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          width={80}
+          height={80}
+        />
+      )
     : (
         <div className="flex h-full w-full items-center justify-center text-3xl">
           {product.icon || product.initial || "📦"}
@@ -121,3 +131,5 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     </motion.article>
   );
 }
+
+

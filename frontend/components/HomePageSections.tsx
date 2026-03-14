@@ -1,17 +1,27 @@
 ﻿"use client";
 
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types";
 import { ProductCard } from "@/components/ProductCard";
 import { HeroMotion } from "@/components/HeroMotion";
 import { HomeActions } from "@/components/HomeActions";
-import { CapabilitySlider } from "@/components/CapabilitySlider";
 import { FadeIn, StaggerContainer, StaggerItem, ScrollCounter, TextReveal } from "@/components/animations";
 
 interface HomePageSectionsProps {
   products: Product[];
 }
+
+const CapabilitySlider = dynamic(
+  () => import("@/components/CapabilitySlider").then((mod) => mod.CapabilitySlider),
+  {
+    loading: () => (
+      <div className="h-[420px] w-full rounded-[2rem] bg-surface-900/5 border border-gray-100/60 shadow-soft" />
+    ),
+  }
+);
 
 const IconShield = ({ className = "h-5 w-5" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -151,9 +161,13 @@ export function HomePageSections({ products }: HomePageSectionsProps) {
             <div className="relative">
               <div className="absolute -inset-10 rounded-[2.5rem] bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-teal-500/10 blur-3xl" />
               <div className="relative mb-6 rounded-[2rem] border border-white/70 bg-white/90 p-4 shadow-[0_18px_60px_-35px_rgba(15,23,42,0.5)]">
-                <img
+                <Image
                   src="/preview-dashboard.svg"
                   alt="DoNotRisk analytics dashboard preview"
+                  width={1200}
+                  height={800}
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   className="h-auto w-full rounded-[1.5rem] border border-ink/5"
                 />
               </div>
@@ -527,6 +541,7 @@ export function HomePageSections({ products }: HomePageSectionsProps) {
             </div>
             <Link
               href="/categories"
+              prefetch
               className="group inline-flex items-center gap-2 text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors"
             >
               View All Products
@@ -612,6 +627,7 @@ export function HomePageSections({ products }: HomePageSectionsProps) {
                 <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
                   <Link
                     href="/scanner"
+                    prefetch
                     className="btn-shimmer inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 font-semibold text-ink shadow-lg hover:shadow-xl transition-all"
                   >
                     Start Scanning
@@ -624,6 +640,7 @@ export function HomePageSections({ products }: HomePageSectionsProps) {
                 <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
                   <Link
                     href="/about"
+                    prefetch
                     className="inline-flex items-center gap-3 rounded-full px-8 py-4 font-semibold text-white backdrop-blur-sm transition-all border"
                     style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }}
                   >

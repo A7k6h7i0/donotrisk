@@ -81,10 +81,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["'Syne'", "sans-serif"],
-        body: ["'Inter'", "sans-serif"],
-        ui: ["'Plus Jakarta Sans'", "sans-serif"],
-        sans: ["'Inter'", "system-ui", "sans-serif"],
+        display: ["var(--font-syne)", "sans-serif"],
+        body: ["var(--font-inter)", "sans-serif"],
+        ui: ["var(--font-jakarta)", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

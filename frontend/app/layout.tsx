@@ -1,9 +1,28 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter, Plus_Jakarta_Sans, Syne } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AuthGate } from "@/components/AuthGate";
 import { OneSignalProvider } from "@/components/OneSignalProvider";
+
+const syne = Syne({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-syne",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jakarta",
+});
 
 export const metadata: Metadata = {
   title: "DoNotRisk - Warranty Intelligence Platform",
@@ -18,7 +37,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className={`${syne.variable} ${inter.variable} ${jakarta.variable} scroll-smooth`}>
       <body className="bg-atmosphere min-h-screen flex flex-col antialiased">
         <OneSignalProvider>
           <Navbar />

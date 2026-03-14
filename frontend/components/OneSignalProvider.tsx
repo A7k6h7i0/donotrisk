@@ -35,12 +35,22 @@ export function OneSignalProvider({ children }: OneSignalProviderProps) {
         const script = document.createElement("script");
         script.src = "https://cdn.onesignal.com/sdks/OneSignalSDK.js";
         script.async = true;
+        script.defer = true;
         script.onload = () => {
           initializeSDK(onesignalAppId);
         };
         document.head.appendChild(script);
       } else {
         initializeSDK(onesignalAppId);
+      }
+    };
+
+    const scheduleInit = () => {
+      if ("requestIdleCallback" in window) {
+        (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void })
+          .requestIdleCallback?.(() => initOneSignal(), { timeout: 2000 });
+      } else {
+        window.setTimeout(() => initOneSignal(), 1500);
       }
     };
 
@@ -99,8 +109,15 @@ export function OneSignalProvider({ children }: OneSignalProviderProps) {
       }
     };
 
-    initOneSignal();
-
+    if (document.readyState === "complete") {
+      scheduleInit();
+    } else {
+      const onLoad = () => scheduleInit();
+      window.addEventListener("load", onLoad, { once: true });
+      return () => {
+        window.removeEventListener("load", onLoad);
+      };
+    }
     // Cleanup
     return () => {
       // Don't remove the script on unmount as it may be needed elsewhere

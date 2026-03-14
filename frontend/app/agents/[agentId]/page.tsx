@@ -63,6 +63,10 @@ export default function AgentProfilePage() {
             src={buildAssetUrl(agent.profilePhoto)}
             alt={agent.name}
             className="mb-2 h-16 w-16 rounded-full object-cover"
+            loading="lazy"
+            decoding="async"
+            width={64}
+            height={64}
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
